@@ -7,6 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Workspace from "./pages/Workspace";
+import Ingest from "./pages/Ingest";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 
@@ -21,6 +22,7 @@ const App = () => (
         <Route element={<AppLayout />}>
           <Route path="/" element={<Index />} />
           <Route path="/workspace" element={<Workspace />} />
+          <Route path="/ingest" element={<Ingest />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
         </Route>

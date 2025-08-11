@@ -51,11 +51,16 @@ npm run dev:full
 Environment variables (create `.env` at the repo root):
 
 ```
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB?schema=public
+DATABASE_URL=postgresql://<user>:<password>@<host>:6543/postgres?schema=public   # Supabase pooled (pgbouncer)
+DIRECT_URL=postgresql://<user>:<password>@<host>:5432/postgres?schema=public     # Supabase direct (non-pooled)
 PINECONE_API_KEY=...
 PINECONE_INDEX=warehouse-index
 GEMINI_API_KEY=...
 PORT=8787
+# TTS (Deepgram)
+DEEPGRAM_API_KEY=
+DEEPGRAM_MODEL=aura-asteria-en
+DEEPGRAM_ENCODING=mp3   # mp3 | wav
 ```
 
 - Generate Prisma client after setting `DATABASE_URL`:
@@ -63,9 +68,31 @@ PORT=8787
 npx prisma generate
 ```
 
+If you need to apply schema changes in Supabase:
+```
+# For production: apply migrations generated elsewhere
+npm run db:migrate
+
+# For development: push current schema directly (no migration files)
+npm run db:push
+```
+
 API endpoints:
 - POST `/api/ingest` { documents: [{ id, text }] }
 - POST `/api/query` { query, topK? }
+- POST `/api/tts` { text, provider?: 'piper'|'azure', voice?, format?: 'mp3'|'wav' }
+### TTS setup
+
+Option A: Piper (local, open-source)
+- Run a Piper container that exposes POST /api/tts. For example (community images vary):
+```
+docker run -p 5500:5000 -e PIPER_VOICE=en_US-amy-medium ghcr.io/rhasspy/piper-http:latest
+```
+- Set `PIPER_TTS_URL=http://localhost:5500/api/tts`
+
+Option B: Azure Speech (free tier available)
+- Set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` and optional `AZURE_SPEECH_VOICE=en-US-AriaNeural`
+- Request POST /api/tts with `{ provider: 'azure' }`
 
 4. Open your browser and navigate to `http://localhost:8080`
 

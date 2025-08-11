@@ -1,7 +1,9 @@
 // Prisma schema for Supabase (PostgreSQL)
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider    = "postgresql"
+  url         = env("DATABASE_URL")      // Use Supabase pooled connection (pgbouncer)
+  directUrl   = env("DIRECT_URL")        // Use direct (non-pooled) for migrations
+  relationMode = "prisma"
 }
 
 generator client {
@@ -14,6 +16,16 @@ model MachineLog {
   event     String
   details   String?
   createdAt DateTime @default(now())
+}
+
+model Machine {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  posX      Float    @default(0)
+  posY      Float    @default(0)
+  posZ      Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 

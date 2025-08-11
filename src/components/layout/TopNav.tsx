@@ -11,8 +11,10 @@ export function TopNav() {
       </div>
       <nav className="hidden md:flex items-center gap-6 text-sm">
         <NavLink to="/workspace" className="story-link">Workspace</NavLink>
+        <NavLink to="/ingest" className="story-link">Ingest</NavLink>
         <NavLink to="/about" className="story-link">About</NavLink>
         <NavLink to="/contact" className="story-link">Contact</NavLink>
+        
       </nav>
       <div className="flex items-center gap-2">
         <Button variant="glass" size="sm">Request demo</Button>
