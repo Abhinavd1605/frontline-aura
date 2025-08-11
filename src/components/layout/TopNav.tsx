@@ -1,12 +1,12 @@
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Bot } from "lucide-react";
 
 export function TopNav() {
   return (
-    <div className="container mx-auto flex h-16 items-center justify-between px-3">
-      <div className="flex items-center gap-3">
-        <SidebarTrigger />
+    <div className="mx-auto flex h-16 items-center justify-between px-4 md:px-6">
+      <div className="flex items-center gap-2">
+        <Bot className="h-5 w-5 text-primary" />
         <NavLink to="/" className="text-sm font-semibold tracking-wide story-link">Frontline AI</NavLink>
       </div>
       <nav className="hidden md:flex items-center gap-6 text-sm">

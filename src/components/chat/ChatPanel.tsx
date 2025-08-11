@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Image as ImageIcon, Mic, MicOff, Paperclip, Send } from "lucide-react";
+import { Image as ImageIcon, Mic, MicOff, Send } from "lucide-react";
 
 interface Message { id: string; role: "user" | "assistant"; content: string; imageUrl?: string; }
 
@@ -11,6 +10,7 @@ export function ChatPanel({ selected }: { selected?: string | null }) {
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | undefined>();
+  const synth = useMemo(() => (typeof window !== 'undefined' ? window.speechSynthesis : null), []);
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -45,7 +45,15 @@ export function ChatPanel({ selected }: { selected?: string | null }) {
       role: "assistant",
       content: selected ? `You asked about ${selected}. Here's a contextual response (mock).` : "Assistant response (mock).",
     };
-    setTimeout(() => setMessages((m) => [...m, reply]), 400);
+    setTimeout(() => {
+      setMessages((m) => [...m, reply]);
+      if (synth) {
+        const utter = new SpeechSynthesisUtterance(reply.content);
+        utter.rate = 1.02;
+        synth.cancel();
+        synth.speak(utter);
+      }
+    }, 400);
   };
 
   const toggleMic = () => {
@@ -67,14 +75,13 @@ export function ChatPanel({ selected }: { selected?: string | null }) {
   };
 
   return (
-    <div className="glass rounded-xl p-4 md:p-5 border">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Assistant</h2>
-        {selected && <div className="text-xs px-2 py-1 rounded bg-secondary/60">Focused: {selected}</div>}
+    <div className="h-full flex flex-col rounded-lg">
+      <div className="flex items-center justify-between mb-2">
+        {selected && <div className="text-xs px-2 py-1 rounded bg-secondary">Focused: {selected}</div>}
       </div>
-      <div className="h-80 md:h-[28rem] overflow-y-auto pr-1 space-y-3">
+      <div className="flex-1 overflow-y-auto pr-1 space-y-3">
         {messages.map((m) => (
-          <div key={m.id} className={`max-w-[85%] glass rounded-lg p-3 border ${m.role === "user" ? "ml-auto" : ""}`}>
+          <div key={m.id} className={`max-w-[85%] rounded-lg p-3 border bg-card ${m.role === "user" ? "ml-auto" : ""}`}>
             {m.imageUrl && (
               <img src={m.imageUrl} alt="uploaded context" className="mb-2 rounded-md max-h-40 w-auto" loading="lazy" />
             )}
@@ -83,7 +90,7 @@ export function ChatPanel({ selected }: { selected?: string | null }) {
         ))}
         <div ref={bottomRef} />
       </div>
-      <div className="mt-4 space-y-2">
+      <div className="mt-3 space-y-2">
         {imagePreview && (
           <div className="flex items-center gap-2 text-xs">
             <img src={imagePreview} alt="preview" className="h-10 w-10 rounded object-cover" />
@@ -91,13 +98,13 @@ export function ChatPanel({ selected }: { selected?: string | null }) {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <Button variant="glass" size="icon" onClick={() => fileInputRef.current?.click()} aria-label="Attach image">
+          <Button variant="secondary" size="icon" onClick={() => fileInputRef.current?.click()} aria-label="Attach image">
             <ImageIcon className="h-4 w-4" />
           </Button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
           <Textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a message..." className="min-h-12 flex-1" />
           <Button onClick={onSend} aria-label="Send"><Send className="h-4 w-4" /></Button>
-          <Button variant="glass" size="icon" onClick={toggleMic} aria-label="Toggle microphone">
+          <Button variant="secondary" size="icon" onClick={toggleMic} aria-label="Toggle microphone">
             {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
         </div>

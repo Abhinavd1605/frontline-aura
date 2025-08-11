@@ -1,0 +1,19 @@
+// Prisma schema for Supabase (PostgreSQL)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model MachineLog {
+  id        String   @id @default(cuid())
+  machineId String
+  event     String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+

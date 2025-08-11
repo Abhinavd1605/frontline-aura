@@ -2,175 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
+/* Minimal, unique flat design system */
 @layer base {
   :root {
-    --background: 222 30% 8%;
-    --foreground: 210 40% 98%;
+    /* Off-white, minimal light palette */
+    --background: 40 20% 96%;          /* off-white */
+    --foreground: 222 15% 14%;         /* ink */
 
-    --card: 222 30% 10%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;                 /* white cards */
+    --card-foreground: 222 15% 14%;
 
-    --popover: 222 30% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 15% 14%;
 
-    --primary: 224 86% 55%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 222 85% 46%;            /* clean blue */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 26% 20%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 40 14% 92%;           /* pale sand */
+    --secondary-foreground: 222 15% 20%;
 
-    --muted: 217 26% 18%;
-    --muted-foreground: 215 20% 72%;
+    --muted: 40 12% 90%;
+    --muted-foreground: 222 8% 40%;
 
-    --accent: 200 90% 55%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 200 70% 45%;             /* teal accent */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 44%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 23%;
-    --input: 220 14% 23%;
-    --ring: 224 86% 55%;
+    --border: 40 12% 84%;              /* soft borders */
+    --input: 40 12% 84%;
+    --ring: 222 85% 46%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 222 30% 9%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 224 86% 55%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 220 14% 18%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 220 14% 20%;
-    --sidebar-ring: 224 86% 55%;
-
-    /* Liquid glass and glow tokens */
-    --glass-surface: 0 0% 100%;
-    --glass-alpha: 0.08;
-    --glass-stroke: 210 40% 98%;
-    --glass-stroke-alpha: 0.12;
-    --shadow-elegant: 0 10px 30px -10px hsl(224 86% 55% / 0.35);
-    --shadow-glow: 0 0 40px hsl(224 86% 55% / 0.35);
-
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(268 87% 63%) 0%, hsl(224 86% 55%) 45%, hsl(198 95% 55%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(222 30% 8%), hsl(222 30% 10%));
-  }
-
-  .dark {
-    --background: 222 30% 8%;
-    --foreground: 210 40% 98%;
-
-    --card: 222 30% 10%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222 30% 10%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 224 86% 55%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 217 26% 20%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217 26% 18%;
-    --muted-foreground: 215 20% 72%;
-
-    --accent: 200 90% 55%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 220 14% 23%;
-    --input: 220 14% 23%;
-    --ring: 224 86% 55%;
-    --sidebar-background: 222 30% 9%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 224 86% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 18%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 224 86% 55%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
+    --radius: 0.6rem;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: var(--gradient-subtle);
-    background-attachment: fixed;
+    background-image: none;
     font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   }
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
 @layer components {
-  .glass {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--glass-surface) / calc(var(--glass-alpha) + 0.06)),
-      hsl(var(--glass-surface) / var(--glass-alpha))
-    );
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--glass-stroke) / var(--glass-stroke-alpha));
-    box-shadow: var(--shadow-elegant);
-  }
+  /* Remove glass effects → flat cards and headers */
+  .glass { @apply bg-card border border-border shadow-none; }
+  .glass-nav { @apply bg-card border-b border-border shadow-none; }
 
-  .glass-nav {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--glass-surface) / 0.18),
-      hsl(var(--glass-surface) / 0.08)
-    );
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid hsl(var(--glass-stroke) / 0.12);
-    box-shadow: var(--shadow-glow);
-  }
-
+  /* Minimal hero button */
   .btn-hero {
-    background-image: var(--gradient-hero);
-    color: hsl(var(--primary-foreground));
-    box-shadow: 0 10px 20px -10px hsl(224 86% 55% / 0.5), inset 0 0 0 1px hsl(var(--glass-stroke) / 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  .btn-hero:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 16px 30px -12px hsl(224 86% 55% / 0.6), inset 0 0 0 1px hsl(var(--glass-stroke) / 0.15);
+    @apply bg-primary text-primary-foreground rounded-lg;
   }
 
   .story-link {
-    position: relative;
-    display: inline-block;
+    @apply text-foreground/90 hover:text-foreground;
   }
-  .story-link::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    bottom: -2px;
-    height: 2px;
-    width: 100%;
-    background: hsl(var(--primary));
-    transform: scaleX(0);
-    transform-origin: right;
-    transition: transform 300ms ease;
-  }
-  .story-link:hover::after {
-    transform: scaleX(1);
-    transform-origin: left;
-  }
-
-  .hover-scale { transition: transform 200ms ease; }
-  .hover-scale:hover { transform: scale(1.03); }
 }
