@@ -4,7 +4,8 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().optional(),
   DIRECT_URL: z.string().optional(),
 
-  GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
+  GROQ_API_KEY: z.string().min(1, 'GROQ_API_KEY is required'),
+  GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required for embeddings'),
 
   PINECONE_API_KEY: z.string().optional(),
   PINECONE_INDEX: z.string().optional(),

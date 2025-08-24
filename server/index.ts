@@ -5,8 +5,10 @@ import cors from 'cors';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { Pinecone } from '@pinecone-database/pinecone';
+import Groq from 'groq-sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import multer from 'multer';
+import os from 'os';
 
 const app = express();
 app.use(cors());
@@ -18,8 +20,12 @@ const prisma = new PrismaClient();
 const pinecone = new Pinecone({ apiKey: env.PINECONE_API_KEY || '' });
 const pcIndex = env.PINECONE_INDEX || '';
 
+const groq = new Groq({
+  apiKey: env.GROQ_API_KEY || '',
+});
+
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+const embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
 
 // Ensure TTS friendly output: remove emojis/symbols commonly read aloud
 const sanitizeText = (input: string): string => {
@@ -27,10 +33,10 @@ const sanitizeText = (input: string): string => {
     // remove emojis and pictographs (broad surrogate range)
     .replace(/[\uD800-\uDFFF]/g, '')
     .replace(/[\u2600-\u26FF]/g, '')
-    // remove common markdown bullets and symbols
+    // remove specific markdown bullets and symbols (but preserve spaces and basic punctuation)
     .replace(/[•*#>_`~|$%^<>\[\]{}@+=]/g, '')
-    // collapse multiple spaces
-    .replace(/ {2,}/g, ' ')
+    // preserve single spaces, only collapse multiple consecutive spaces
+    .replace(/\s{2,}/g, ' ')
     .trim();
 };
 
@@ -43,12 +49,12 @@ async function embed(texts: string[]): Promise<number[][]> {
   // Choose an embedding model that matches the Pinecone index dimension
   // Pinecone index is configured with env.PINECONE_DIM (default 1024)
   // Use a 1024-dim model to satisfy: llama-text-embed-v2 (1024)
-  const embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+  // Using Gemini for embeddings since Groq doesn't provide embedding services
   const results = await Promise.all(
-    texts.map(async (t) => {
-      const r = await embeddingModel.embedContent(t);
-      const v = r.embedding.values as number[];
-      // If the target index expects 1024 and we received 768 (older models), pad to 1024
+    texts.map(async (text) => {
+      const result = await embeddingModel.embedContent(text);
+      const v = result.embedding.values as number[];
+      // If the target index expects 1024 and we received different dimension, pad/truncate
       if (env.PINECONE_DIM && v.length !== env.PINECONE_DIM) {
         const dim = env.PINECONE_DIM;
         const out = new Array(dim).fill(0);
@@ -216,25 +222,90 @@ app.post('/api/query', async (req, res) => {
 
     let prompt: string;
     if (usedContexts.length > 0) {
-      prompt = `You are a warehouse assistant.
-First summarize in one or two sentences.
-Then provide short, precise steps. Avoid emojis and symbols.
-Context:
+      prompt = `You are an expert technician helping a colleague fix equipment over the phone. Be natural and conversational, like you're walking them through the repair step-by-step in real time.
+
+IMPORTANT GUIDELINES:
+- You are an expert technician helping a colleague over the phone - be direct and natural
+- Talk like you're having a real phone conversation with another technician
+${machine ? 
+`- MACHINE ALREADY SELECTED: The user has already selected "${machine}" - DO NOT ask "Which machine are you having trouble with?" - move straight to asking about the specific problem or providing help
+- Acknowledge the machine and ask "What's going on with the ${machine}?" or similar` 
+: 
+`- STRUCTURED FLOW: If no machine is specified, first ask "Which machine are you having trouble with?" Then confirm the machine before troubleshooting`}
+- Once machine is identified, acknowledge it and ask about the specific problem
+- Avoid formal language like "since", "please confirm", "I recommend", "would be to"
+- Use natural phrases like "try this", "go ahead and", "see if", "check if", "next thing to do", "now try"
+- Don't start responses with "since" or repeat the problem back to them
+- If the user describes a specific problem with a known machine, jump straight to the solution
+- CRITICAL: If user says "issue resolved", "it's working", "problem fixed", "printing properly", "everything is fine", or similar, acknowledge success and stop troubleshooting - do NOT suggest more steps
+- Look at the full conversation context to understand what they're working on
+- Keep responses to 1-2 lines maximum - give the next step and move on
+- Don't ask for confirmation unless genuinely needed for safety
+- Be concise but helpful, like talking to an experienced colleague
+- No emojis or special symbols
+
+Context from documentation:
 ${usedContexts.join('\n---\n')}
 
-Question: ${query}`;
+${machine ? `CURRENT MACHINE: ${machine} (already selected - user is working on this specific machine)` : 'No machine specified yet'}
+
+User input: ${query}
+
+${machine ? 
+`IMPORTANT: The user has already selected "${machine}" as their machine. DO NOT ask which machine they're having trouble with. Instead, acknowledge the machine and ask about the specific problem, or provide troubleshooting help directly.` 
+: 
+`IMPORTANT: No machine specified yet. Ask "Which machine are you having trouble with?" to identify the equipment before troubleshooting.`}`;
     } else {
       // No relevant context → LLM-only fallback
-      prompt = `You are a warehouse assistant.
-There is no retrieved documentation for this question${machine ? ` about the machine ${machine}` : ''}.
-Provide a short, precise answer. Avoid emojis and symbols.
-If you are not certain, say what additional information is needed.
-Question: ${query}`;
+      prompt = `You are an expert technician helping a colleague fix equipment over the phone. Be natural and conversational, like you're walking them through the repair step-by-step in real time.
+
+IMPORTANT GUIDELINES:
+- You are an expert technician helping a colleague over the phone - be direct and natural
+- Talk like you're having a real phone conversation with another technician
+${machine ? 
+`- MACHINE ALREADY SELECTED: The user has already selected "${machine}" - DO NOT ask "Which machine are you having trouble with?" - move straight to asking about the specific problem
+- Acknowledge the machine and ask "What's going on with the ${machine}?" or similar` 
+: 
+`- STRUCTURED FLOW: If no machine is specified, first ask "Which machine are you having trouble with?" Then confirm the machine before troubleshooting`}
+- Once machine is identified, acknowledge it and ask about the specific problem
+- Avoid formal language like "since", "please confirm", "I recommend", "would be to"
+- Use natural phrases like "try this", "go ahead and", "see if", "check if", "next thing to do", "now try"
+- Don't start responses with "since" or repeat the problem back to them
+- If the user describes a specific problem with a known machine, jump straight to the solution
+- CRITICAL: If user says "issue resolved", "it's working", "problem fixed", "printing properly", "everything is fine", or similar, acknowledge success and stop troubleshooting - do NOT suggest more steps
+- Look at the full conversation context to understand what they're working on
+- Keep responses to 1-2 lines maximum - give the next step and move on
+- Don't ask for confirmation unless genuinely needed for safety
+- Be concise but helpful, like talking to an experienced colleague
+- No emojis or special symbols
+
+Note: I don't have specific documentation for this question${machine ? ` about ${machine}` : ''}, but I can help based on general equipment knowledge and the machine details available.
+
+${machine ? `CURRENT MACHINE: ${machine} (already selected - user is working on this specific machine)` : 'No machine specified yet'}
+
+User input: ${query}
+
+${machine ? 
+`IMPORTANT: The user has already selected "${machine}" as their machine. DO NOT ask which machine they're having trouble with. Instead, acknowledge the machine and ask about the specific problem, or provide troubleshooting help directly.` 
+: 
+`IMPORTANT: No machine specified yet. Ask "Which machine are you having trouble with?" to identify the equipment before troubleshooting.`}`;
     }
 
-    const result = await model.generateContent(prompt);
-    const text = sanitizeText(result.response.text());
-
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama3-8b-8192",
+      max_tokens: 150,  // Shorter responses to encourage concise answers
+      temperature: 0.3, // Slightly higher for more natural conversation
+    });
+    
+    const rawText = completion.choices[0]?.message?.content || '';
+    // Apply lighter sanitization to preserve readability
+    const text = rawText
+      .replace(/[\uD800-\uDFFF]/g, '') // Remove emoji surrogates
+      .replace(/[\u2600-\u26FF]/g, '')  // Remove emoji symbols
+      .replace(/[•*#>_`~|$%^<>\[\]{}@+=]/g, '') // Remove markdown symbols but keep spaces
+      .replace(/\s{2,}/g, ' ') // Only collapse multiple spaces
+      .trim();
     res.json({ answer: text, contexts: usedContexts });
   } catch (err: any) {
     console.error(err);
@@ -282,22 +353,72 @@ app.post('/api/query/stream', async (req, res) => {
 
     let prompt: string;
     if (usedContexts.length > 0) {
-      prompt = `You are a warehouse assistant.
-Provide a structured response with no emojis and no symbols.
-Use short sentences and bullet-like lines without symbols.
-Sections to include when relevant: Summary, Steps, Safety, Next Actions.
-Context:
+      prompt = `You are an expert technician helping a colleague fix equipment over the phone. Be natural and conversational, like you're walking them through the repair step-by-step in real time.
+
+IMPORTANT GUIDELINES:
+- You are an expert technician helping a colleague over the phone - be direct and natural
+- Talk like you're having a real phone conversation with another technician
+${machine ? 
+`- MACHINE ALREADY SELECTED: The user has already selected "${machine}" - DO NOT ask "Which machine are you having trouble with?" - move straight to asking about the specific problem or providing help
+- Acknowledge the machine and ask "What's going on with the ${machine}?" or similar` 
+: 
+`- STRUCTURED FLOW: If no machine is specified, first ask "Which machine are you having trouble with?" Then confirm the machine before troubleshooting`}
+- Once machine is identified, acknowledge it and ask about the specific problem
+- Avoid formal language like "since", "please confirm", "I recommend", "would be to"
+- Use natural phrases like "try this", "go ahead and", "see if", "check if", "next thing to do", "now try"
+- Don't start responses with "since" or repeat the problem back to them
+- If the user describes a specific problem with a known machine, jump straight to the solution
+- CRITICAL: If user says "issue resolved", "it's working", "problem fixed", "printing properly", "everything is fine", or similar, acknowledge success and stop troubleshooting - do NOT suggest more steps
+- Look at the full conversation context to understand what they're working on
+- Keep responses to 1-2 lines maximum - give the next step and move on
+- Don't ask for confirmation unless genuinely needed for safety
+- Be concise but helpful, like talking to an experienced colleague
+- No emojis or special symbols
+
+Context from documentation:
 ${usedContexts.join('\n---\n')}
 
-Question: ${query}`;
+${machine ? `CURRENT MACHINE: ${machine} (already selected - user is working on this specific machine)` : 'No machine specified yet'}
+
+User input: ${query}
+
+${machine ? 
+`IMPORTANT: The user has already selected "${machine}" as their machine. DO NOT ask which machine they're having trouble with. Instead, acknowledge the machine and ask about the specific problem, or provide troubleshooting help directly.` 
+: 
+`IMPORTANT: No machine specified yet. Ask "Which machine are you having trouble with?" to identify the equipment before troubleshooting.`}`;
     } else {
-      prompt = `You are a warehouse assistant.
-There is no retrieved documentation for this question${machine ? ` about the machine ${machine}` : ''}.
-Provide a structured response with no emojis and no symbols.
-Use short sentences and bullet-like lines without symbols.
-Sections to include when relevant: Summary, Steps, Safety, Next Actions.
-If you are not certain, say what additional information is needed.
-Question: ${query}`;
+      prompt = `You are an expert technician helping a colleague fix equipment over the phone. Be natural and conversational, like you're walking them through the repair step-by-step in real time.
+
+IMPORTANT GUIDELINES:
+- You are an expert technician helping a colleague over the phone - be direct and natural
+- Talk like you're having a real phone conversation with another technician
+${machine ? 
+`- MACHINE ALREADY SELECTED: The user has already selected "${machine}" - DO NOT ask "Which machine are you having trouble with?" - move straight to asking about the specific problem
+- Acknowledge the machine and ask "What's going on with the ${machine}?" or similar` 
+: 
+`- STRUCTURED FLOW: If no machine is specified, first ask "Which machine are you having trouble with?" Then confirm the machine before troubleshooting`}
+- Once machine is identified, acknowledge it and ask about the specific problem
+- Avoid formal language like "since", "please confirm", "I recommend", "would be to"
+- Use natural phrases like "try this", "go ahead and", "see if", "check if", "next thing to do", "now try"
+- Don't start responses with "since" or repeat the problem back to them
+- If the user describes a specific problem with a known machine, jump straight to the solution
+- CRITICAL: If user says "issue resolved", "it's working", "problem fixed", "printing properly", "everything is fine", or similar, acknowledge success and stop troubleshooting - do NOT suggest more steps
+- Look at the full conversation context to understand what they're working on
+- Keep responses to 1-2 lines maximum - give the next step and move on
+- Don't ask for confirmation unless genuinely needed for safety
+- Be concise but helpful, like talking to an experienced colleague
+- No emojis or special symbols
+
+Note: I don't have specific documentation for this question${machine ? ` about ${machine}` : ''}, but I can help based on general equipment knowledge and the machine details available.
+
+${machine ? `CURRENT MACHINE: ${machine} (already selected - user is working on this specific machine)` : 'No machine specified yet'}
+
+User input: ${query}
+
+${machine ? 
+`IMPORTANT: The user has already selected "${machine}" as their machine. DO NOT ask which machine they're having trouble with. Instead, acknowledge the machine and ask about the specific problem, or provide troubleshooting help directly.` 
+: 
+`IMPORTANT: No machine specified yet. Ask "Which machine are you having trouble with?" to identify the equipment before troubleshooting.`}`;
     }
 
     res.setHeader('Content-Type', 'application/x-ndjson');
@@ -306,17 +427,26 @@ Question: ${query}`;
     // initial contexts line
     res.write(JSON.stringify({ contexts: usedContexts }) + "\n");
 
-    const streamResult: any = await (model as any).generateContentStream?.(prompt);
-    if (!streamResult || !streamResult.stream) {
-      // Fallback to non-streaming
-      const result = await model.generateContent(prompt);
-      const text = sanitizeText(result.response.text());
-      res.write(JSON.stringify({ delta: text }) + "\n");
-      return res.end();
-    }
-    for await (const chunk of streamResult.stream) {
-      const chunkText = typeof chunk.text === 'function' ? sanitizeText(chunk.text()) : '';
-      if (chunkText) res.write(JSON.stringify({ delta: chunkText }) + "\n");
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama3-8b-8192",
+      max_tokens: 150,  // Shorter responses to encourage concise answers
+      temperature: 0.3, // Slightly higher for more natural conversation
+      stream: true,
+    });
+
+    for await (const chunk of completion) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        // Only remove truly problematic characters, preserve spaces and basic punctuation
+        const cleanContent = content
+          .replace(/[\uD800-\uDFFF]/g, '') // Remove emoji surrogates
+          .replace(/[\u2600-\u26FF]/g, '')  // Remove emoji symbols
+          .replace(/[•*#>_`~|$%^<>\[\]{}@+=]/g, ''); // Remove markdown symbols but keep spaces
+        if (cleanContent) {
+          res.write(JSON.stringify({ delta: cleanContent }) + "\n");
+        }
+      }
     }
     res.end();
   } catch (err: any) {
@@ -361,7 +491,7 @@ app.get('/api/machines', async (_req, res) => {
 
 app.post('/api/machines', async (req, res) => {
   try {
-    const schema = z.object({ name: z.string().min(1), posX: z.number(), posY: z.number(), posZ: z.number() });
+    const schema = z.object({ name: z.string().min(1), posX: z.number(), posZ: z.number() });
     const data = schema.parse(req.body);
     const created = await prisma.machine.create({ data });
     res.json(created);
@@ -372,7 +502,7 @@ app.post('/api/machines', async (req, res) => {
 
 app.put('/api/machines/:id', async (req, res) => {
   try {
-    const schema = z.object({ name: z.string().min(1), posX: z.number(), posY: z.number(), posZ: z.number() });
+    const schema = z.object({ name: z.string().min(1), posX: z.number(), posZ: z.number() });
     const data = schema.parse(req.body);
     const updated = await prisma.machine.update({ where: { id: req.params.id }, data });
     res.json(updated);
@@ -388,6 +518,79 @@ app.delete('/api/machines/:id', async (req, res) => {
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Failed to delete machine' });
   }
+});
+
+// Speech-to-text endpoint for mobile voice interface
+app.post('/api/speech-to-text', upload.single('audio'), async (req, res) => {
+  try {
+    const audioFile = req.file;
+    
+    if (!audioFile) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    // For now, return a simulated response based on common industrial queries
+    // In production, you would integrate with services like:
+    // - OpenAI Whisper API
+    // - Google Speech-to-Text  
+    // - Azure Speech Services
+    
+    const mockTranscripts = [
+      "I need help with the conveyor belt",
+      "The CNC machine is making a strange noise",
+      "The robot arm won't move to position",
+      "The 3D printer is not heating up",
+      "There's a jam in the assembly line",
+      "The belt got cut and needs repair",
+      "Machine stopped working suddenly",
+      "How do I restart the system"
+    ];
+    
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const randomTranscript = mockTranscripts[Math.floor(Math.random() * mockTranscripts.length)];
+    
+    res.json({ 
+      transcript: randomTranscript,
+      confidence: 0.95,
+      language: 'en-US'
+    });
+  } catch (err: any) {
+    console.error('Speech-to-text error:', err);
+    res.status(400).json({ error: err.message || 'Speech recognition failed' });
+  }
+});
+
+// Endpoint to help detect server IP for mobile connections
+app.get('/api/server-info', (req, res) => {
+  const networkInterfaces = os.networkInterfaces();
+  const ips: string[] = [];
+  
+  // Get all non-internal IPv4 addresses
+  for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+    if (interfaces) {
+      for (const iface of interfaces) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          ips.push(iface.address);
+        }
+      }
+    }
+  }
+  
+  // Find preferred IP (private network ranges)
+  const preferredIP = ips.find(ip => 
+    ip.startsWith('192.168.') || 
+    ip.startsWith('10.') || 
+    ip.startsWith('172.')
+  ) || ips[0] || 'localhost';
+  
+  res.json({
+    hostname: req.get('host'),
+    ips: ips,
+    preferredIP: preferredIP
+  });
 });
 
 const PORT = env.PORT;

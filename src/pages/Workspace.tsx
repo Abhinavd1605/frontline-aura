@@ -1,28 +1,26 @@
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
-import { useEffect, useState } from "react";
+import { OrbitControls, Environment, ContactShadows } from "@react-three/drei";
+import { useEffect, useState, Suspense } from "react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
+import { Smartphone } from "lucide-react";
+import { RealisticMachine } from "@/components/machines/RealisticMachines";
 
-function MachineBox({ position, name, onSelect, selected }: { position: [number, number, number]; name: string; onSelect: (n: string) => void; selected?: boolean; }) {
+// Loading component for machines
+function MachineLoader() {
   return (
-    <group position={position} onClick={() => onSelect(name)}>
-      <mesh>
-        <boxGeometry args={[1.4, 0.8, 1.0]} />
-        <meshStandardMaterial color={selected ? "#2563eb" : "#1d4ed8"} metalness={0.2} roughness={0.4} />
-      </mesh>
-      <Html center distanceFactor={10} occlude>
-        <div className={`px-2 py-1 rounded-md text-xs ${selected ? 'bg-blue-600 text-white' : 'bg-white text-black/80'} border`}>{name}</div>
-      </Html>
-    </group>
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#94a3b8" opacity={0.5} transparent />
+    </mesh>
   );
 }
 
 export default function Workspace() {
   const [selected, setSelected] = useState<string | null>(null);
-  const [machines, setMachines] = useState<{ id: string; name: string; posX: number; posY: number; posZ: number }[]>([]);
+  const [machines, setMachines] = useState<{ id: string; name: string; posX: number; posZ: number }[]>([]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -55,32 +53,164 @@ export default function Workspace() {
             </div>
             <h1 className="sr-only">3D Warehouse Visualization</h1>
             <div className="h-full">
-              <Canvas camera={{ position: [6, 5, 8], fov: 50 }}>
-                <ambientLight intensity={0.6} />
-                <directionalLight position={[6, 8, 3]} intensity={0.6} />
+              <Canvas camera={{ position: [10, 8, 12], fov: 45 }} shadows="soft">
+                <Suspense fallback={null}>
+                  {/* Photorealistic environment lighting */}
+                  <Environment preset="warehouse" />
+                  
+                  {/* Key light for dramatic industrial look */}
+                  <directionalLight 
+                    position={[15, 20, 8]} 
+                    intensity={1.2} 
+                    castShadow
+                    shadow-mapSize={[4096, 4096]}
+                    shadow-camera-far={100}
+                    shadow-camera-left={-30}
+                    shadow-camera-right={30}
+                    shadow-camera-top={30}
+                    shadow-camera-bottom={-30}
+                    shadow-bias={-0.0001}
+                  />
+                  
+                  {/* Fill lights */}
+                  <directionalLight position={[-15, 15, -8]} intensity={0.4} />
+                  <directionalLight position={[8, 12, -15]} intensity={0.3} />
+                  
+                  {/* Ambient for overall illumination */}
+                  <ambientLight intensity={0.2} />
 
-                {/* Floor */}
-                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-                  <planeGeometry args={[40, 40]} />
-                  <meshStandardMaterial color="#e7e5e4" metalness={0.1} roughness={1} />
-                </mesh>
-
-                {/* Machines from DB */}
-                {machines.length > 0 ? (
-                  machines.map((m) => (
-                    <MachineBox
-                      key={m.id}
-                      position={[m.posX, m.posY, m.posZ]}
-                      name={m.name}
-                      onSelect={setSelected}
-                      selected={selected === m.name}
+                  {/* Realistic factory floor with contact shadows */}
+                  <group>
+                    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+                      <planeGeometry args={[60, 60]} />
+                      <meshStandardMaterial 
+                        color="#e5e7eb" 
+                        metalness={0.1} 
+                        roughness={0.95}
+                        envMapIntensity={0.3}
+                      />
+                    </mesh>
+                    
+                    {/* Contact shadows for more realistic ground interaction */}
+                    <ContactShadows 
+                      position={[0, -0.005, 0]} 
+                      opacity={0.3} 
+                      scale={60} 
+                      blur={2.5} 
+                      far={10} 
                     />
-                  ))
-                ) : (
-                  <MachineBox position={[0, 0, 0]} name="Machine A" onSelect={setSelected} selected={selected === 'Machine A'} />
-                )}
+                  </group>
 
-                <OrbitControls enableDamping dampingFactor={0.08} />
+                  {/* Simplified factory structure for better performance */}
+                  <group>
+                    {/* Back wall */}
+                    <mesh position={[0, 6, -30]} receiveShadow>
+                      <boxGeometry args={[60, 12, 1]} />
+                      <meshStandardMaterial 
+                        color="#9ca3af" 
+                        metalness={0.1} 
+                        roughness={0.8}
+                        envMapIntensity={0.2}
+                      />
+                    </mesh>
+                    
+                    {/* Left wall */}
+                    <mesh position={[-30, 6, 0]} receiveShadow>
+                      <boxGeometry args={[1, 12, 60]} />
+                      <meshStandardMaterial 
+                        color="#9ca3af" 
+                        metalness={0.1} 
+                        roughness={0.8}
+                        envMapIntensity={0.2}
+                      />
+                    </mesh>
+
+                    {/* High ceiling structure */}
+                    <mesh position={[0, 12, 0]}>
+                      <boxGeometry args={[60, 0.5, 60]} />
+                      <meshStandardMaterial 
+                        color="#6b7280" 
+                        metalness={0.4} 
+                        roughness={0.6}
+                        envMapIntensity={0.5}
+                      />
+                    </mesh>
+
+                    {/* Support beams */}
+                    <mesh position={[0, 10, -25]} rotation={[0, Math.PI / 2, 0]}>
+                      <cylinderGeometry args={[0.3, 0.3, 60]} />
+                      <meshStandardMaterial 
+                        color="#374151" 
+                        metalness={0.8} 
+                        roughness={0.2}
+                        envMapIntensity={0.8}
+                      />
+                    </mesh>
+                    <mesh position={[0, 10, 25]} rotation={[0, Math.PI / 2, 0]}>
+                      <cylinderGeometry args={[0.3, 0.3, 60]} />
+                      <meshStandardMaterial 
+                        color="#374151" 
+                        metalness={0.8} 
+                        roughness={0.2}
+                        envMapIntensity={0.8}
+                      />
+                    </mesh>
+                  </group>
+
+                  {/* Safety markings */}
+                  <group>
+                    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+                      <ringGeometry args={[10, 10.3, 0, Math.PI * 2]} />
+                      <meshStandardMaterial 
+                        color="#fbbf24" 
+                        metalness={0.1} 
+                        roughness={0.9}
+                        transparent
+                        opacity={0.8}
+                      />
+                    </mesh>
+                    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[18, 0.02, 18]}>
+                      <ringGeometry args={[4, 4.2, 0, Math.PI * 2]} />
+                      <meshStandardMaterial 
+                        color="#fbbf24" 
+                        metalness={0.1} 
+                        roughness={0.9}
+                        transparent
+                        opacity={0.8}
+                      />
+                    </mesh>
+                  </group>
+
+                  {/* Realistic Machines */}
+                  {machines.length > 0 ? (
+                    machines.map((m) => (
+                      <RealisticMachine
+                        key={m.id}
+                        position={[m.posX, 0, m.posZ]}
+                        name={m.name}
+                        onSelect={setSelected}
+                        selected={selected === m.name}
+                        machineType={m.name}
+                      />
+                    ))
+                  ) : (
+                    <RealisticMachine 
+                      position={[0, 0, 0]} 
+                      name="CNC Mill A" 
+                      onSelect={setSelected} 
+                      selected={selected === 'CNC Mill A'}
+                      machineType="cnc mill"
+                    />
+                  )}
+                </Suspense>
+
+                <OrbitControls 
+                  enableDamping 
+                  dampingFactor={0.05}
+                  minDistance={5}
+                  maxDistance={50}
+                  maxPolarAngle={Math.PI / 2.2}
+                />
               </Canvas>
             </div>
           </section>
@@ -88,7 +218,15 @@ export default function Workspace() {
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={35} minSize={25}>
           <aside className="h-full flex flex-col">
-            <div className="px-4 md:px-5 py-3 border-b text-sm font-medium text-foreground/80">Assistant</div>
+            <div className="px-4 md:px-5 py-3 border-b flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground/80">Text Chat Assistant</span>
+              <NavLink to="/mobile-voice" target="_blank">
+                <Button size="sm" variant="outline" className="flex items-center gap-1.5">
+                  <Smartphone className="h-3.5 w-3.5" />
+                  Mobile Voice
+                </Button>
+              </NavLink>
+            </div>
             <div className="flex-1 p-3 md:p-4 overflow-hidden">
               <ChatPanel selected={selected} machines={machines.map(m=>m.name)} />
             </div>

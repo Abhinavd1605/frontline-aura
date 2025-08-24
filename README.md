@@ -1,4 +1,4 @@
-# Frontline AI — Liquid Glass Interface
+# CrewMind — Liquid Glass Interface
 
 A modern web application that empowers frontline workers with a liquid glass interface, 3D warehouse visualization, and conversational assistance.
 
@@ -55,7 +55,8 @@ DATABASE_URL=postgresql://<user>:<password>@<host>:6543/postgres?schema=public  
 DIRECT_URL=postgresql://<user>:<password>@<host>:5432/postgres?schema=public     # Supabase direct (non-pooled)
 PINECONE_API_KEY=...
 PINECONE_INDEX=warehouse-index
-GEMINI_API_KEY=...
+GROQ_API_KEY=...
+GEMINI_API_KEY=...  # For embeddings (Groq doesn't provide embeddings)
 PORT=8787
 # TTS (Deepgram)
 DEEPGRAM_API_KEY=

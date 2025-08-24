@@ -7,6 +7,7 @@ DIRECT_URL="postgresql://postgres.kikjdjlmipfmtipiwcit:abhinavreddy2005@aws-0-us
 
 PINECONE_API_KEY=pcsk_4bGbEQ_FyLUFPE67vDGpE982iEsYxSvJpP3gfDcfBEzkLkctU4KXK1uK7BroLNPNQoy4zn
 PINECONE_INDEX=warehouse-index
+GROQ_API_KEY=your_groq_api_key_here
 GEMINI_API_KEY=AIzaSyBkoK7SEEd6sC-98mJa07OG8nD6Jzrd0UI
 PORT=8787
 

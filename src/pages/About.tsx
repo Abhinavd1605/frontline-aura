@@ -2,7 +2,7 @@ export default function About() {
   return (
     <div className="space-y-8">
       <header className="glass rounded-xl p-6 md:p-8 border">
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">About Frontline AI</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">About CrewMind</h1>
         <p className="mt-3 text-muted-foreground max-w-2xl">
           We build assistive AI for frontline teams. Our liquid glass interface blends 3D spatial context with conversational understanding.
         </p>

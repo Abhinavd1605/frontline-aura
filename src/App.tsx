@@ -10,6 +10,8 @@ import Workspace from "./pages/Workspace";
 import Ingest from "./pages/Ingest";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import VoiceChat from "./pages/VoiceChat";
+import MobileVoice from "./pages/MobileVoice";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +27,10 @@ const App = () => (
           <Route path="/ingest" element={<Ingest />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/voice-chat" element={<VoiceChat />} />
         </Route>
+        {/* Mobile voice interface - standalone route without layout */}
+        <Route path="/mobile-voice" element={<MobileVoice />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

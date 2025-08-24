@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bot, Image as ImageIcon, Mic, MicOff, Send, MessageSquare } from "lucide-react";
+import { Bot, Image as ImageIcon, Send, MessageSquare } from "lucide-react";
 
 interface Message { id: string; role: "user" | "assistant"; content: string; imageUrl?: string; ts: number }
 type ChatPanelProps = { selected?: string | null; selectedMachineId?: string | null; machines?: string[] };
@@ -10,97 +10,20 @@ type ChatPanelProps = { selected?: string | null; selectedMachineId?: string | n
 export function ChatPanel({ selected, selectedMachineId = null, machines = [] }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [recording, setRecording] = useState(false);
+
   const [imagePreview, setImagePreview] = useState<string | undefined>();
-  const synth = useMemo(() => (typeof window !== 'undefined' ? window.speechSynthesis : null), []);
-  const recognitionRef = useRef<any>(null);
+
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [contexts, setContexts] = useState<string[]>([]);
 
-  // Prefer high-quality local voices (Edge/Chrome) for more human-like speech
-  const speakConversational = (text: string, lang = 'en-US') => {
-    if (!synth || !text) return;
 
-    const pickVoice = () => {
-      const voices = synth.getVoices();
-      const byPref =
-        voices.find(v => /Microsoft/i.test(v.name) && v.lang.toLowerCase().startsWith(lang.toLowerCase())) ||
-        voices.find(v => /Google/i.test(v.name) && v.lang.toLowerCase().startsWith(lang.toLowerCase())) ||
-        voices.find(v => v.lang.toLowerCase().startsWith(lang.toLowerCase())) ||
-        voices[0];
-      return byPref ?? null;
-    };
-
-    const speakNow = () => {
-      // Split into sentences for natural pacing
-      const parts = text
-        .split(/([.!?]\s+)/)
-        .reduce<string[]>((acc, cur, i, arr) => {
-          if (!cur.trim()) return acc;
-          if (/[.!?]\s+/.test(cur) && acc.length) acc[acc.length - 1] += cur; else acc.push(cur);
-          return acc;
-        }, []);
-
-      synth.cancel();
-      const voice = pickVoice();
-      parts.forEach((segment, idx) => {
-        const u = new SpeechSynthesisUtterance(segment.trim());
-        if (voice) u.voice = voice;
-        u.lang = voice?.lang || lang;
-        u.rate = 1.0;   // natural pace
-        u.pitch = 1.03; // slight lift for conversational tone
-        u.volume = 1.0;
-        // brief pause between segments
-        u.onend = () => { if (idx < parts.length - 1) setTimeout(() => {}, 80); };
-        synth.speak(u);
-      });
-    };
-
-    if (synth.getVoices().length === 0) {
-      synth.addEventListener('voiceschanged', () => speakNow(), { once: true });
-    } else {
-      speakNow();
-    }
-  };
-
-  const playTTS = async (text: string) => {
-    if (!text) return;
-    try {
-      const tts = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      if (tts.ok) {
-        const blob = await tts.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        await audio.play().catch(() => {});
-        return;
-      }
-    } catch {}
-    // Fallback to high-quality local voice
-    speakConversational(text);
-  };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  useEffect(() => {
-    const SR: any = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    if (SR) {
-      recognitionRef.current = new SR();
-      recognitionRef.current.lang = "en-US";
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.onresult = (e: any) => {
-        const text = Array.from(e.results).map((r: any) => r[0].transcript).join(" ");
-        setInput((prev) => prev ? prev + " " + text : text);
-      };
-      recognitionRef.current.onend = () => setRecording(false);
-    }
-  }, []);
+
 
   const onSend = async () => {
     if (loading) return;
@@ -111,7 +34,23 @@ export function ChatPanel({ selected, selectedMachineId = null, machines = [] }:
     setImagePreview(undefined);
     try {
       setLoading(true);
-      const enrichedQuery = selected ? `${input} (Machine context: ${selected})` : input;
+      // Don't add machine context for simple greetings
+      const isGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening|greetings)$/i.test(input.trim());
+      
+      // Get recent conversation context (last 2-3 messages for context)
+      const recentMessages = messages.slice(-4); // Last 4 messages for context
+      let conversationContext = '';
+      if (recentMessages.length > 0) {
+        conversationContext = recentMessages.map(m => `${m.role}: ${m.content}`).join('\n');
+      }
+      
+      let enrichedQuery = input;
+      if (selected && !isGreeting) {
+        enrichedQuery = `${input} (Machine context: ${selected})`;
+      }
+      if (conversationContext && !isGreeting) {
+        enrichedQuery = `Recent conversation:\n${conversationContext}\n\nCurrent question: ${enrichedQuery}`;
+      }
       // Attempt streaming first
       const resp = await fetch('/api/query/stream', {
         method: 'POST',
@@ -177,7 +116,7 @@ export function ChatPanel({ selected, selectedMachineId = null, machines = [] }:
         usedContextsLocal = currentContexts;
         // defer TTS to unified handler below
       }
-      await playTTS(finalText);
+
       const hay = `${finalText}\n${(usedContextsLocal || []).join('\n')}`.toLowerCase();
       const match = machines.find((m) => hay.includes(m.toLowerCase()));
       if (match) {
@@ -186,22 +125,13 @@ export function ChatPanel({ selected, selectedMachineId = null, machines = [] }:
     } catch (err) {
       const reply: Message = { id: crypto.randomUUID(), role: 'assistant', content: 'Sorry, something went wrong. Please try again.', ts: Date.now() };
       setMessages((m) => [...m, reply]);
-      speakConversational(reply.content);
+
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleMic = () => {
-    if (!recognitionRef.current) return;
-    if (recording) {
-      recognitionRef.current.stop();
-      setRecording(false);
-    } else {
-      setRecording(true);
-      recognitionRef.current.start();
-    }
-  };
+
 
   const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -263,9 +193,6 @@ export function ChatPanel({ selected, selectedMachineId = null, machines = [] }:
           </div>
         )}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={toggleMic} aria-label="Toggle microphone">
-            {recording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
           <div className="flex-1 flex items-end gap-2 rounded-xl border bg-background px-3 py-2">
             <Textarea
               value={input}
