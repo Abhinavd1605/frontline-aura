@@ -24,7 +24,8 @@ export default function Ingest() {
   const [form, setForm] = useState({ name: '', posX: 0, posZ: 0 });
 
   const loadMachines = async () => {
-    const r = await fetch('/api/machines');
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+    const r = await fetch(`${API_BASE_URL}/api/machines`);
     const data = await r.json();
     setMachines(data || []);
   };
@@ -39,8 +40,9 @@ export default function Ingest() {
     try {
       setBusy(true);
       setStatus('Uploading and indexing...');
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
       const params = selectedId ? `?machineId=${encodeURIComponent(selectedId)}` : '';
-      const resp = await fetch(`/api/ingest/upload${params}`, { method: 'POST', body: form });
+      const resp = await fetch(`${API_BASE_URL}/api/ingest/upload${params}`, { method: 'POST', body: form });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Upload failed');
       setStatus(`Indexed ${data.upserted} document(s) to Pinecone.`);
@@ -55,7 +57,8 @@ export default function Ingest() {
     try {
       setBusy(true);
       setStatus('Creating machine...');
-      const resp = await fetch('/api/machines', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+      const resp = await fetch(`${API_BASE_URL}/api/machines`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)

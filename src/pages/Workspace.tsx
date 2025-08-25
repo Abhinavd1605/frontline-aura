@@ -35,7 +35,8 @@ export default function Workspace() {
     // Load machines from API so Workspace mirrors the Ingest 3D space
     const load = async () => {
       try {
-        const r = await fetch('/api/machines');
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+        const r = await fetch(`${API_BASE_URL}/api/machines`);
         const data = await r.json();
         if (Array.isArray(data)) setMachines(data);
       } catch {}

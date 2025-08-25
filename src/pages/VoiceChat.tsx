@@ -87,7 +87,8 @@ export default function VoiceChat() {
     const loadMachines = async () => {
       try {
         console.log('Loading machines from /api/machines...');
-        const response = await fetch('/api/machines');
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+        const response = await fetch(`${API_BASE_URL}/api/machines`);
         console.log('Machines API response status:', response.status);
         const data = await response.json();
         console.log('Machines API response data:', data);
@@ -392,7 +393,8 @@ export default function VoiceChat() {
     
     try {
       // Try backend TTS first
-      const tts = await fetch('/api/tts', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+      const tts = await fetch(`${API_BASE_URL}/api/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: textWithoutEmojis })
@@ -539,7 +541,8 @@ export default function VoiceChat() {
       console.log('Final enriched query being sent:', enrichedQuery);
 
       // Try streaming API first
-      const resp = await fetch('/api/query/stream', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+      const resp = await fetch(`${API_BASE_URL}/api/query/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -556,7 +559,7 @@ export default function VoiceChat() {
 
       if (!resp.ok || !resp.body) {
         // fallback to non-streaming
-        const fallback = await fetch('/api/query', {
+        const fallback = await fetch(`${API_BASE_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: enrichedQuery, topK: 4, machine: selectedMachine || undefined })

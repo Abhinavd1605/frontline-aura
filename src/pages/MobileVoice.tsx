@@ -38,9 +38,10 @@ export default function MobileVoice() {
     }
 
     // Load available machines from API
-    const loadMachines = async () => {
-      try {
-        const response = await fetch('/api/machines');
+      const loadMachines = async () => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+      const response = await fetch(`${API_BASE_URL}/api/machines`);
         if (response.ok) {
           const machines = await response.json();
           setAvailableMachines(machines.map((m: any) => m.name));
@@ -284,7 +285,8 @@ export default function MobileVoice() {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'audio.webm');
 
-    const response = await fetch('/api/speech-to-text', {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+    const response = await fetch(`${API_BASE_URL}/api/speech-to-text`, {
       method: 'POST',
       body: formData
     });
@@ -298,7 +300,8 @@ export default function MobileVoice() {
   };
 
   const getAIResponse = async (query: string): Promise<string> => {
-    const response = await fetch('/api/query', {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+    const response = await fetch(`${API_BASE_URL}/api/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -52,7 +52,8 @@ export function ChatPanel({ selected, selectedMachineId = null, machines = [] }:
         enrichedQuery = `Recent conversation:\n${conversationContext}\n\nCurrent question: ${enrichedQuery}`;
       }
       // Attempt streaming first
-      const resp = await fetch('/api/query/stream', {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://crewmind.onrender.com';
+      const resp = await fetch(`${API_BASE_URL}/api/query/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,7 +67,7 @@ export function ChatPanel({ selected, selectedMachineId = null, machines = [] }:
       let usedContextsLocal: string[] = [];
       if (!resp.ok || !resp.body) {
         // fallback to non-streaming
-        const fallback = await fetch('/api/query', {
+        const fallback = await fetch(`${API_BASE_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
