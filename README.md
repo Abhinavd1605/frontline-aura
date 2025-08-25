@@ -1,6 +1,6 @@
 # CrewMind — Liquid Glass Interface
 
-A modern web application that empowers frontline workers with a liquid glass interface, 3D warehouse visualization, and conversational assistance.
+A modern web application that empowers frontline workers with a liquid glass interface, 3D warehouse visualization, and conversational assistance. Updated for production deployment.
 
 ## Features
 
