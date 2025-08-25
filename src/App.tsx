@@ -12,6 +12,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import VoiceChat from "./pages/VoiceChat";
 import MobileVoice from "./pages/MobileVoice";
+import MobileConnectivity from "./pages/MobileConnectivity";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/voice-chat" element={<VoiceChat />} />
+          <Route path="/mobile-connectivity" element={<MobileConnectivity />} />
         </Route>
         {/* Mobile voice interface - standalone route without layout */}
         <Route path="/mobile-voice" element={<MobileVoice />} />
