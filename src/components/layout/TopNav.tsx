@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bot } from "lucide-react";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
 
 export function TopNav() {
   return (
@@ -18,6 +19,7 @@ export function TopNav() {
         
       </nav>
       <div className="flex items-center gap-2">
+        <ConnectionStatus className="hidden md:inline-flex" />
         <Button variant="glass" size="sm">Request demo</Button>
       </div>
     </div>
